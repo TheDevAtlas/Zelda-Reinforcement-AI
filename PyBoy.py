@@ -5,6 +5,8 @@ import tensorflow as tf
 import numpy as np
 import random
 
+# train over the course of a week constantly #
+
 # Define the neural network model
 def create_model(input_shape, num_actions):
     model = tf.keras.Sequential([
