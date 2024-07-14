@@ -1,99 +1,99 @@
-import multiprocessing
-from multiprocessing import Pool
-from pyboy import PyBoy
-import tensorflow as tf
+import gymnasium as gym
+from gymnasium import spaces
 import numpy as np
-import random
+from pyboy import PyBoy
+import multiprocessing
 
-# train over the course of a week constantly #
+actions = ['','a', 'b', 'left', 'right', 'up', 'down', 'start', 'select']
 
-# Define the neural network model
-def create_model(input_shape, num_actions):
-    model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(32, (8, 8), strides=(4, 4), activation='relu', input_shape=input_shape),
-        tf.keras.layers.Conv2D(64, (4, 4), strides=(2, 2), activation='relu'),
-        tf.keras.layers.Conv2D(64, (3, 3), strides=(1, 1), activation='relu'),
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(512, activation='relu'),
-        tf.keras.layers.Dense(num_actions, activation='linear')
-    ])
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.00025), loss='mse')
-    return model
+matrix_shape = (16, 20)
+game_area_observation_space = spaces.Box(low=0, high=255, shape=matrix_shape, dtype=np.uint8)
 
-# Define the agent
-class DQNAgent:
-    def __init__(self, input_shape, num_actions):
-        self.model = create_model(input_shape, num_actions)
-        self.target_model = create_model(input_shape, num_actions)
-        self.update_target_model()
-        self.memory = []
-        self.gamma = 0.99  # discount factor
-        self.epsilon = 1.0  # exploration rate
-        self.epsilon_decay = 0.995
-        self.epsilon_min = 0.1
-        self.batch_size = 32
-        self.num_actions = num_actions
+class GenericPyBoyEnv(gym.Env):
 
-    def update_target_model(self):
-        self.target_model.set_weights(self.model.get_weights())
+    def __init__(self, pyboy, debug=False):
+        super().__init__()
+        self.pyboy = pyboy
+        self._fitness=0
+        self._previous_fitness=0
+        self.debug = debug
 
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
-        if len(self.memory) > 2000:
-            self.memory.pop(0)
+        if not self.debug:
+            self.pyboy.set_emulation_speed(0)
 
-    def act(self, state):
-        if np.random.rand() <= self.epsilon:
-            return random.randrange(self.num_actions)
-        act_values = self.model.predict(state)
-        return np.argmax(act_values[0])
+        self.action_space = spaces.Discrete(len(actions))
+        self.observation_space = game_area_observation_space
 
-    def replay(self):
-        if len(self.memory) < self.batch_size:
-            return
-        minibatch = random.sample(self.memory, self.batch_size)
-        for state, action, reward, next_state, done in minibatch:
-            target = reward
-            if not done:
-                target += self.gamma * np.amax(self.target_model.predict(next_state)[0])
-            target_f = self.model.predict(state)
-            target_f[0][action] = target
-            self.model.fit(state, target_f, epochs=1, verbose=0)
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
+        self.pyboy.game_wrapper.start_game()
 
-# Function to run the game
-def run_game(instance_id):
-    pyboy = PyBoy('loz.gbc', window_type="headless")
-    agent = DQNAgent(input_shape=(160, 144, 1), num_actions=8)
-    pyboy.set_emulation_speed(0)
+    def step(self, action):
+        assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+
+        # Move the agent
+        if action == 0:
+            pass
+        else:
+            self.pyboy.button(actions[action])
+
+        # Consider disabling renderer when not needed to improve speed:
+        # self.pyboy.tick(1, False)
+        self.pyboy.tick(1)
+
+        done = self.pyboy.game_wrapper.game_over
+
+        self._calculate_fitness()
+        reward=self._fitness-self._previous_fitness
+
+        observation=self.pyboy.game_area()
+        info = {}
+        truncated = False
+
+        return observation, reward, done, truncated, info
+
+    def _calculate_fitness(self):
+        self._previous_fitness=self._fitness
+
+        # NOTE: Only some game wrappers will provide a score
+        # If not, you'll have to investigate how to score the game yourself
+        # self._fitness=self.pyboy.game_wrapper.score
+
+    def reset(self, **kwargs):
+        self.pyboy.game_wrapper.reset_game()
+        self._fitness=0
+        self._previous_fitness=0
+
+        observation=self.pyboy.game_area()
+        info = {}
+        return observation, info
+
+    def render(self, mode='human'):
+        pass
+
+    def close(self):
+        self.pyboy.stop()
+
+def run_bot(index):
+    # Initialize PyBoy with the specific game ROM path
+    pyboy = PyBoy('loz.gbc')
+    env = GenericPyBoyEnv(pyboy, debug=False)
+    observation, info = env.reset()
     
-    done = False
-    state = pyboy.get_screen_buffer()
-    state = np.reshape(state, [1, 160, 144, 1])
-    for _ in range(2 * 60 * 60):  # Run for 2 game hours at 60 fps
-        action = agent.act(state)
-        pyboy.send_input(WindowEvent.PRESS_ARROW_UP)  # Example action
+    for _ in range(100000):  # Run for a fixed number of steps or until done
+        action = env.action_space.sample()  # Replace with your action selection logic
+        observation, reward, done, truncated, info = env.step(action)
         pyboy.tick()
-        next_state = pyboy.get_screen_buffer()
-        next_state = np.reshape(next_state, [1, 160, 144, 1])
-        reward = 1  # Define your reward function
-        done = False  # Define your done condition
-        agent.remember(state, action, reward, next_state, done)
-        state = next_state
-        agent.replay()
-    pyboy.stop()
-    return agent
+        #if done:
+            #break
+        
 
-# Run multiple instances in parallel
-def run_parallel_games(num_instances):
-    with Pool(processes=num_instances) as pool:
-        agents = pool.map(run_game, range(num_instances))
-    return agents
+    env.close()
 
 if __name__ == "__main__":
-    num_instances = 16
-    agents = run_parallel_games(num_instances)
-    for i, agent in enumerate(agents):
-        print(f"Instance {i}: Epsilon = {agent.epsilon}")
+    processes = []
+    for i in range(6):  # Number of bots you want to run
+        p = multiprocessing.Process(target=run_bot, args=(i,))
+        processes.append(p)
+        p.start()
 
+    for p in processes:
+        p.join()
