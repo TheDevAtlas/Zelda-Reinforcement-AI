@@ -1,3 +1,5 @@
+# https://datacrystal.romhacking.net/wiki/The_Legend_of_Zelda:_Link%27s_Awakening_(Game_Boy)
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -55,7 +57,8 @@ class GenericPyBoyEnv(gym.Env):
 
         # NOTE: Only some game wrappers will provide a score
         # If not, you'll have to investigate how to score the game yourself
-        # self._fitness=self.pyboy.game_wrapper.score
+        # Inventory + New Screens #
+        self._fitness = 
 
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
@@ -90,7 +93,7 @@ def run_bot(index):
 
 if __name__ == "__main__":
     processes = []
-    for i in range(6):  # Number of bots you want to run
+    for i in range(1):  # Number of bots you want to run
         p = multiprocessing.Process(target=run_bot, args=(i,))
         processes.append(p)
         p.start()
