@@ -6,6 +6,10 @@
 # 7/18/2024 - 2 : 930830
 # 7/18/2024 - 3 : 935034
 # 7/18/2024 - FIXED FITNESS ERROR
+# 7/18/2024 - 4 : 40
+# 7/18/2024 - 5 : 40 -> 20
+# 7/18/2024 - FIXED OVERWRITE ISSUE - KEEPS BEST
+# 7/18/2024 - 6 : 20 ->
 
 import gymnasium as gym
 from gymnasium import spaces
@@ -14,8 +18,9 @@ from pyboy import PyBoy
 import multiprocessing
 import os
 import pickle
+import time
 
-actions = ['','a', 'b', 'left', 'right', 'up', 'down', 'start', 'select']
+actions = ['', 'a', 'b', 'left', 'right', 'up', 'down', 'start', 'select']
 
 matrix_shape = (16, 20)
 game_area_observation_space = spaces.Box(low=0, high=255, shape=matrix_shape, dtype=np.uint8)
@@ -156,24 +161,31 @@ def load_best_model():
 
 def run_bot(index):
     # Initialize PyBoy with the specific game ROM path
-    pyboy = PyBoy('loz.gbc')#,window="null")
+    pyboy = PyBoy('loz.gbc', window="null")
     env = GenericPyBoyEnv(pyboy, debug=False)
     observation, info = env.reset()
 
     best_fitness = load_best_model()
 
-    for _ in range(300000):  # Run for a fixed number of steps or until done
+    start_time = time.time()
+    one_hour = 60 * 60  # 1 hour in seconds
+
+    while time.time() - start_time < one_hour:
         action = env.action_space.sample()  # Replace with your action selection logic
         observation, reward, done, truncated, info = env.step(action)
         # if done:
         #     break
 
-    save_model(index, env._fitness)
+    if env._fitness > best_fitness:
+        save_model(index, env._fitness)
+    else:
+        print(f"Model {index} fitness {env._fitness} did not improve over best fitness {best_fitness}")
+
     env.close()
 
 if __name__ == "__main__":
     processes = []
-    for i in range(1):  # Number of bots you want to run
+    for i in range(25):  # Number of bots you want to run
         p = multiprocessing.Process(target=run_bot, args=(i,))
         processes.append(p)
         p.start()
