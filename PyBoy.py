@@ -1,13 +1,18 @@
 # https://datacrystal.romhacking.net/wiki/The_Legend_of_Zelda:_Link%27s_Awakening_(Game_Boy)
 # https://datacrystal.romhacking.net/wiki/The_Legend_of_Zelda:_Link%27s_Awakening_(Game_Boy)/RAM_map
 
-
+# DATE + Training Fitness #
+# 7/18/2024 - 1 : 802679
+# 7/18/2024 - 2 : 930830
+# 7/18/2024 - 3 : 935034
 
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 from pyboy import PyBoy
 import multiprocessing
+import os
+import pickle
 
 actions = ['','a', 'b', 'left', 'right', 'up', 'down', 'start', 'select']
 
@@ -19,8 +24,8 @@ class GenericPyBoyEnv(gym.Env):
     def __init__(self, pyboy, debug=False):
         super().__init__()
         self.pyboy = pyboy
-        self._fitness=0
-        self._previous_fitness=0
+        self._fitness = 0
+        self._previous_fitness = 0
         self.debug = debug
 
         if not self.debug:
@@ -40,14 +45,12 @@ class GenericPyBoyEnv(gym.Env):
         else:
             self.pyboy.button(actions[action])
 
-        # Consider disabling renderer when not needed to improve speed:
-        #self.pyboy.tick(1, False)
         self.pyboy.tick(1)
 
         done = self.pyboy.game_wrapper.game_over
 
         self._calculate_fitness()
-        reward=self._fitness-self._previous_fitness
+        reward = self._fitness - self._previous_fitness
 
         observation = self.pyboy.game_area()
         info = {}
@@ -63,11 +66,19 @@ class GenericPyBoyEnv(gym.Env):
         # Inventory memory locations
         inventory_start = 0xDB02
         inventory_end = 0xDB0B
-        
+
         # Loop through the inventory memory range and add the values to inventoryValues
         for address in range(inventory_start, inventory_end + 1):
             if self.pyboy.memory[address] > 0:
                 inventoryValues += 7
+
+        # Items held memory locations
+        held_start = 0xDB00
+        held_end = 0xDB01
+
+        for address in range(held_start, held_end + 1):
+            if self.pyboy.memory[address] > 0:
+                inventoryValues += 10  # Assign a higher value for held items
 
         # World map status memory locations
         visit_start = 0xD800
@@ -101,15 +112,14 @@ class GenericPyBoyEnv(gym.Env):
             inventoryValues += self.pyboy.memory[0xDB5D] + self.pyboy.memory[0xDB5E]
 
         # Update the fitness value
-        self._fitness += inventoryValues
-
+        self._fitness = inventoryValues
 
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
-        self._fitness=0
-        self._previous_fitness=0
+        self._fitness = 0
+        self._previous_fitness = 0
 
-        observation=self.pyboy.game_area()
+        observation = self.pyboy.game_area()
         info = {}
         return observation, info
 
@@ -119,20 +129,45 @@ class GenericPyBoyEnv(gym.Env):
     def close(self):
         self.pyboy.stop()
 
+def save_model(index, fitness):
+    model_filename = f'model_{index}.pkl'
+    with open(model_filename, 'wb') as f:
+        pickle.dump(fitness, f)
+    print(f"Model {index} saved with fitness {fitness}")
+
+def load_best_model():
+    best_fitness = -np.inf
+    best_model_filename = None
+    for filename in os.listdir('.'):
+        if filename.startswith('model_') and filename.endswith('.pkl'):
+            with open(filename, 'rb') as f:
+                fitness = pickle.load(f)
+                if fitness > best_fitness:
+                    best_fitness = fitness
+                    best_model_filename = filename
+    if best_model_filename:
+        with open(best_model_filename, 'rb') as f:
+            best_fitness = pickle.load(f)
+        print(f"Best model loaded: {best_model_filename} with fitness {best_fitness}")
+    else:
+        print("No previous model found. Starting fresh.")
+    return best_fitness
+
 def run_bot(index):
     # Initialize PyBoy with the specific game ROM path
-    pyboy = PyBoy('loz.gbc')
+    pyboy = PyBoy('loz.gbc',window="null")
     env = GenericPyBoyEnv(pyboy, debug=False)
     observation, info = env.reset()
-    
-    for _ in range(60000):  # Run for a fixed number of steps or until done
+
+    best_fitness = load_best_model()
+
+    for _ in range(600000):  # Run for a fixed number of steps or until done
         action = env.action_space.sample()  # Replace with your action selection logic
         observation, reward, done, truncated, info = env.step(action)
-        #pyboy.tick()
-        #if done:
-            #break
-        
+        # if done:
+        #     break
 
+    save_model(index, env._fitness)
     env.close()
 
 if __name__ == "__main__":
