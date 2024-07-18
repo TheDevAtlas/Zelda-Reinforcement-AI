@@ -5,6 +5,7 @@
 # 7/18/2024 - 1 : 802679
 # 7/18/2024 - 2 : 930830
 # 7/18/2024 - 3 : 935034
+# 7/18/2024 - FIXED FITNESS ERROR
 
 import gymnasium as gym
 from gymnasium import spaces
@@ -155,13 +156,13 @@ def load_best_model():
 
 def run_bot(index):
     # Initialize PyBoy with the specific game ROM path
-    pyboy = PyBoy('loz.gbc',window="null")
+    pyboy = PyBoy('loz.gbc')#,window="null")
     env = GenericPyBoyEnv(pyboy, debug=False)
     observation, info = env.reset()
 
     best_fitness = load_best_model()
 
-    for _ in range(600000):  # Run for a fixed number of steps or until done
+    for _ in range(300000):  # Run for a fixed number of steps or until done
         action = env.action_space.sample()  # Replace with your action selection logic
         observation, reward, done, truncated, info = env.step(action)
         # if done:
