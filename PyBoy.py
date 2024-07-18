@@ -9,7 +9,8 @@
 # 7/18/2024 - 4 : 40
 # 7/18/2024 - 5 : 40 -> 20
 # 7/18/2024 - FIXED OVERWRITE ISSUE - KEEPS BEST
-# 7/18/2024 - 6 : 20 ->
+# 7/18/2024 - 6 : 20 -> 35
+# 7/18/2024 - set of 5 training : 
 
 import gymnasium as gym
 from gymnasium import spaces
@@ -184,11 +185,12 @@ def run_bot(index):
     env.close()
 
 if __name__ == "__main__":
-    processes = []
-    for i in range(25):  # Number of bots you want to run
-        p = multiprocessing.Process(target=run_bot, args=(i,))
-        processes.append(p)
-        p.start()
+    for epoch in range(1): # sets of training
+        processes = []
+        for i in range(1):  # Number of bots you want to run
+            p = multiprocessing.Process(target=run_bot, args=(i,))
+            processes.append(p)
+            p.start()
 
-    for p in processes:
-        p.join()
+        for p in processes:
+            p.join()
