@@ -162,7 +162,7 @@ def load_best_model():
 
 def run_bot(index):
     # Initialize PyBoy with the specific game ROM path
-    pyboy = PyBoy('loz.gbc', window="null")
+    pyboy = PyBoy('loz.gbc')#, window="null")
     env = GenericPyBoyEnv(pyboy, debug=False)
     observation, info = env.reset()
 
