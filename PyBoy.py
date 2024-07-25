@@ -52,12 +52,12 @@ class GenericPyBoyEnv(gym.Env):
         else:
             self.pyboy.button(actions[action])
 
-        self.pyboy.tick(1)
+        self.pyboy.tick(30,True)
 
         done = self.pyboy.game_wrapper.game_over
 
         self._calculate_fitness()
-        reward = self._fitness - self._previous_fitness
+        reward = self._fitness# - self._previous_fitness
 
         observation = self.pyboy.game_area()
         info = {}
@@ -185,9 +185,9 @@ def run_bot(index):
     env.close()
 
 if __name__ == "__main__":
-    for epoch in range(1000000): # sets of training
+    for epoch in range(11): # sets of training
         processes = []
-        for i in range(1):  # Number of bots you want to run
+        for i in range(12):  # Number of bots you want to run
             p = multiprocessing.Process(target=run_bot, args=(i,))
             processes.append(p)
             p.start()
