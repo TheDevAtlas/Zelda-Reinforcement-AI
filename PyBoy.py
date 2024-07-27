@@ -187,7 +187,7 @@ def run_bot(index):
 if __name__ == "__main__":
     for epoch in range(11): # sets of training
         processes = []
-        for i in range(4):  # Number of bots you want to run
+        for i in range(16):  # Number of bots you want to run
             p = multiprocessing.Process(target=run_bot, args=(i,))
             processes.append(p)
             p.start()
