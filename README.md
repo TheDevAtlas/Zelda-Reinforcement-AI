@@ -18,6 +18,6 @@ After weeks of training and numerous iterations, the AI made significant progres
 
 <div align="center">
   <img src="images/O1.png" alt="image1" width="250" style="margin-right: 10px;"/>
-  <img src="images/O2.gif" alt="image2" width="250" style="margin-right: 10px;"/>
+  <img src="images/O2.png" alt="image2" width="250" style="margin-right: 10px;"/>
   <img src="images/O3.png" alt="image3" width="250"/>
 </div>
